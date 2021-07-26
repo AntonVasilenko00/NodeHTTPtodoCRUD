@@ -1,44 +1,24 @@
-import {Request, Response} from '../types'
+import {Request} from '../types'
 import {ROOT_ROUTE} from '../config/defaults'
-import trimSlash from '../utils/trimSlash'
+import {trimSlash} from '../utils'
 
-export const handleTodosRoutes = (req: Request, res: Response) => {
-  let url = trimSlash(req.url!)
-//  CREATE
-  handleTodoCreate(req,res,url)
-//  READ
-  if (req.method === 'GET' && url === `${ROOT_ROUTE}/todos`) {
-    res.write('todos')
-    res.end()
-  }
-//  UPDATE
-
-//  DELETE
+export const isTodoIdPath = (url: string) => {
+  const arr = url.split(`${ROOT_ROUTE}/todos/`)
+  return arr.length === 2
+}
+export const isTodoPath = (url: string) => {
+  const arr = url.split('/')
+  arr.shift() //remove first empty element
+  return arr[0] === ROOT_ROUTE.split('/').join('') && arr[1] === 'todos'
 }
 
-const handleTodoCreate = (req: Request, res: Response, url: string) => {
-  if (req.method === 'POST' && url === `${ROOT_ROUTE}/todos`) {
-    let data = ''
-    req.on('data', (chunk) => data += chunk)
-    req.on('end', ()=>{
-      console.log(data)
-      res.write('posted')
-      res.end()
-    })
-  }
-}
-
-const handleTodoUpdate = (req: Request, res: Response, url: string) => {
-  if (req.method === 'POST' && url === `${ROOT_ROUTE}/todos`) {
-  }
-}
-
-const handleTodoRead = (req: Request, res: Response, url: string) => {
-  if (req.method === 'POST' && url === `${ROOT_ROUTE}/todos`) {
-  }
-}
-
-const handleTodoDelete = (req: Request, res: Response, url: string) => {
-  if (req.method === 'POST' && url === `${ROOT_ROUTE}/todos`) {
-  }
-}
+//CREATE
+export const isCreateTodoRequest = (req: Request) => req.method === 'POST' && req.url && trimSlash(req.url) === `${ROOT_ROUTE}/todos`
+//READ
+export const isGetAllTodosRequest = (req: Request) => req.method === 'GET' && req.url && trimSlash(req.url) === `${ROOT_ROUTE}/todos`
+export const isGetSingleTodoRequest = (req: Request) => req.method === 'GET' && req.url && isTodoIdPath(trimSlash(req.url))
+//UPDATE
+export const isUpdateTodoRequest = (req: Request) => req.method === 'PUT' && req.url && isTodoIdPath(trimSlash(req.url))
+export const isPatchTodoRequest = (req: Request) => req.method === 'PATCH' && req.url && isTodoIdPath(trimSlash(req.url))
+//DELETE
+export const isDeleteTodoRequest = (req: Request) => req.method === 'DELETE' && req.url && isTodoIdPath(trimSlash(req.url))
