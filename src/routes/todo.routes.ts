@@ -7,7 +7,7 @@ export const handleTodosRoutes = (req: Request, res: Response) => {
 //  CREATE
   handleTodoCreate(req,res,url)
 //  READ
-  if (req.method === 'GET') {
+  if (req.method === 'GET' && url === `${ROOT_ROUTE}/todos`) {
     res.write('todos')
     res.end()
   }
