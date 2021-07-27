@@ -4,6 +4,8 @@ import {handleTodosRoutes} from '../controllers/todo.controller'
 import {isTodoPath} from './todo.routes'
 
 export const rootRouter = (req: Request, res: Response) => {
+  //throw
+  //switch
   if (req.url) {
     let url = trimSlash(req.url)
     if (isTodoPath(url))

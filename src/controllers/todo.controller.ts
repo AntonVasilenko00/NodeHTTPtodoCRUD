@@ -13,6 +13,10 @@ import {getIdFromUrl} from '../utils'
 import {CastError} from 'mongoose'
 
 export const handleTodosRoutes = (req: Request, res: Response) => {
+  switch (true) {
+    case isCreateTodoRequest(req):
+      break
+  }
   if (isCreateTodoRequest(req))
     handleTodoCreate(req, res)
   else if (isGetSingleTodoRequest(req))
@@ -33,7 +37,7 @@ export const handleTodosRoutes = (req: Request, res: Response) => {
 }
 
 //CREATE
-export const handleTodoCreate = async (req: Request, res: Response) => {
+export const handleTodoCreate = (req: Request, res: Response) => {
   let data = ''
   req.on('data', (chunk) => data += chunk)
   req.on('end', async () => {
@@ -53,7 +57,7 @@ export const handleTodoCreate = async (req: Request, res: Response) => {
   })
 }
 //READ
-export const handleTodoGetAll = async (req: Request, res: Response) => {
+export const handleTodoGetAll = (req: Request, res: Response) => {
   Todo.find({})
       .then((data: ITodo[]) => res.write(JSON.stringify(data)))
       .catch((e: Error) => {
@@ -64,7 +68,7 @@ export const handleTodoGetAll = async (req: Request, res: Response) => {
       )
       .finally(() => res.end())
 }
-export const handleTodoGetSingle = async (req: Request, res: Response) => {
+export const handleTodoGetSingle = (req: Request, res: Response) => {
   if (req.url)
     Todo.findById(getIdFromUrl(req.url))
         .then((data: ITodo) => {
@@ -121,7 +125,7 @@ export const handleTodoPut = (req: Request, res: Response) => {
 export const handleTodoPatch = (req: Request, res: Response) => {
   let data = ''
   req.on('data', (chunk) => data += chunk)
-  req.on('end', async () => {
+  req.on('end', () => {
     if (req.url) {
       const jsonData = JSON.parse(data)
       Todo.findByIdAndUpdate(getIdFromUrl(req.url), jsonData, { new: true })
@@ -153,20 +157,20 @@ export const handleTodoPatch = (req: Request, res: Response) => {
   })
 }
 //DELETE
-export const handleTodoDelete = async (req: Request, res: Response) => {
-  if (req.url) try {
-    const data = await Todo.findByIdAndDelete(getIdFromUrl(req.url))
-    if (data) {
-      res.write(JSON.stringify(data))
-    } else {
-      res.statusCode = 404
-      res.write('Couldn\'t find element with such id')
-    }
-  } catch (e) {
-    console.log(e)
-    res.statusCode = 404
-    res.write('Couldn\'t get data from db')
-  } finally {
-    res.end()
-  }
+export const handleTodoDelete = (req: Request, res: Response) => {
+  if (!req.url) return
+  Todo.findByIdAndDelete(getIdFromUrl(req.url))
+      .then((data: ITodo) => {
+        if (data) {
+          res.write(JSON.stringify(data))
+        } else {
+          res.statusCode = 404
+          res.write('Couldn\'t find element with such id')
+        }
+      })
+      .catch((e: Error) => {
+        res.statusCode = 404
+        res.write('Couldn\'t get data from db')
+      })
+      .finally(() => res.end())
 }

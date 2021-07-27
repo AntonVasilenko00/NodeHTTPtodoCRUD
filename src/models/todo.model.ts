@@ -1,7 +1,7 @@
 import mongoose from 'mongoose';
 const { Schema } = mongoose;
 
-export const todoSchema = new Schema({
+export const todoSchema = new Schema<ITodo>({
   text:  {type: String, required: true},
   isCompleted: {type: Boolean, default: false},
 });

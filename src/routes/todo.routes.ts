@@ -8,8 +8,9 @@ export const isTodoIdPath = (url: string) => {
 }
 export const isTodoPath = (url: string) => {
   const arr = url.split('/')
-  arr.shift() //remove first empty element
-  return arr[0] === ROOT_ROUTE.split('/').join('') && arr[1] === 'todos'
+  // [_, a, b]
+  // arr.shift() //remove first empty element
+  return arr[1] === ROOT_ROUTE.split('/').join('') && arr[2] === 'todos'
 }
 
 //CREATE
