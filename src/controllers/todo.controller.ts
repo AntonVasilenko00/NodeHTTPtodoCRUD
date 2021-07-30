@@ -1,176 +1,106 @@
 //Request handlers
-import {Request, Response} from '../types'
-import {ITodo, Todo} from '../models/todo.model'
-import {
-  isCreateTodoRequest,
-  isDeleteTodoRequest,
-  isGetAllTodosRequest,
-  isGetSingleTodoRequest,
-  isPatchTodoRequest,
-  isUpdateTodoRequest
-} from '../routes/todo.routes'
-import {getIdFromUrl} from '../utils'
-import {CastError} from 'mongoose'
-
-export const handleTodosRoutes = (req: Request, res: Response) => {
-  switch (true) {
-    case isCreateTodoRequest(req):
-      break
-  }
-  if (isCreateTodoRequest(req))
-    handleTodoCreate(req, res)
-  else if (isGetSingleTodoRequest(req))
-    handleTodoGetSingle(req, res)
-  else if (isGetAllTodosRequest(req))
-    handleTodoGetAll(req, res)
-  else if (isUpdateTodoRequest(req))
-    handleTodoPut(req, res)
-  else if (isPatchTodoRequest(req))
-    handleTodoPatch(req, res)
-  else if (isDeleteTodoRequest(req))
-    handleTodoDelete(req, res)
-  else {
-    res.statusCode = 400
-    res.write('invalid request')
-    res.end()
-  }
-}
+import { Request, Response } from '../types'
+import { ITodo } from '../models/todo.model'
+import { getIdFromUrl } from '../utils'
+import { CastError } from 'mongoose'
+import * as TodoService from '../services/todo.service'
 
 //CREATE
+
+const sendNoIdResponse = (res: Response) => {
+  handleResponse(404, "Couldn't find item with such id", res)
+}
+
+const handleResponse = (statusCode: number, responseMessage: string, res: Response) => {
+  res.statusCode = statusCode
+  res.write(responseMessage)
+}
+
+const handleTodoPutError = (e: CastError, res: Response) => {
+  const errorMessage = e.reason ? e.reason.message : e.message
+  const statusCode = e.reason ? 404 : 400
+  const responseMessage = JSON.stringify({ message: "Couldn't update item", error: errorMessage })
+  handleResponse(statusCode, responseMessage, res)
+}
+
+const handleTodoPatchError = (e: CastError, res: Response) => {
+  const err = e.reason ? (e.kind === 'ObjectId' ? 'Invalid Id' : e.reason.message) : e.message //norm?
+  const statusCode = e.reason ? (e.kind === 'ObjectId' ? 404 : 400) : 400
+  const responseMessage = JSON.stringify({ message: "Couldn't update item", error: err })
+  handleResponse(statusCode, responseMessage, res)
+}
+
+const handleTodoGetAllError = (res: Response) => {
+  handleResponse(404, "Couldn't get data from db", res)
+}
+
+const handleTodoCreateError = (e: Error, res: Response) => {
+  handleResponse(400, JSON.stringify({ message: "Couldn't create a todo", error: e.message }), res)
+}
+
+const handleTodoDeleteError = (res: Response) => {
+  handleResponse(400, "Couldn't delete item", res)
+}
+
+const handleTodoFoundById = (data: ITodo | null, res: Response) => {
+  data ? res.write(JSON.stringify(data)) : sendNoIdResponse(res)
+}
+
+const todosDataHandler = (req: Request) => {
+  return new Promise<ITodo>((resolve) => {
+    let data = ''
+    req.on('data', (chunk) => (data += chunk))
+    req.on('end', () => resolve(JSON.parse(data)))
+  })
+}
+
+//async await
 export const handleTodoCreate = (req: Request, res: Response) => {
-  let data = ''
-  req.on('data', (chunk) => data += chunk)
-  req.on('end', async () => {
-    try {
-      const jsonData = JSON.parse(data)
-      const todo = new Todo({ text: jsonData.text, isCompleted: jsonData.isCompleted || false })
-      await todo.save()
+  todosDataHandler(req)
+    .then((data) => {
+      return TodoService.addTodo(data)
+    })
+    .then((todo) => {
       res.statusCode = 201
       res.write(JSON.stringify(todo))
-    } catch (e) {
-      console.log(e)
-      res.statusCode = 400
-      res.write(JSON.stringify({ message: 'Couldn\'t create a todo', error: e.message }))
-    } finally {
-      res.end()
-    }
-  })
+    })
+    .catch((e) => handleTodoCreateError(e, res))
+    .finally(() => res.end())
 }
 //READ
 export const handleTodoGetAll = (req: Request, res: Response) => {
-  Todo.find({})
-      .then((data: ITodo[]) => res.write(JSON.stringify(data)))
-      .catch((e: Error) => {
-            console.log(e)
-            res.statusCode = 404
-            res.write('Couldn\'t get data from db')
-          }
-      )
-      .finally(() => res.end())
+  TodoService.getAllTodos()
+    .then((data) => res.write(JSON.stringify(data)))
+    .catch(() => handleTodoGetAllError(res))
+    .finally(() => res.end())
 }
-export const handleTodoGetSingle = (req: Request, res: Response) => {
-  if (req.url)
-    Todo.findById(getIdFromUrl(req.url))
-        .then((data: ITodo) => {
-          if (data)
-            res.write(JSON.stringify(data))
-          else {
-            res.statusCode = 404
-            res.write('Couldn\'t find item with such id')
-          }
-        })
-        .catch((e: Error) => {
-          console.log(e)
-          res.statusCode = 404
-          res.write('Couldn\'t get data from db')
-        })
-        .finally(() => res.end())
+export const handleTodoGetSingle = (req: Request, res: Response, path: string) => {
+  TodoService.findTodoById(getIdFromUrl(path))
+    .then((data) => handleTodoFoundById(data, res))
+    .catch(() => sendNoIdResponse(res))
+    .finally(() => res.end())
 }
 //UPDATE
-export const handleTodoPut = (req: Request, res: Response) => {
-  let data = ''
-  req.on('data', (chunk) => data += chunk)
-  req.on('end', async () => {
-    if (req.url) {
-      const jsonData = JSON.parse(data)
-      Todo.findByIdAndUpdate(getIdFromUrl(req.url), jsonData, {
-            overwrite: true,
-            runValidators: true,
-            new: true
-          })
-          .then((updatedTodo: ITodo) => {
-            if (updatedTodo)
-              res.write(JSON.stringify(updatedTodo))
-            else {
-              res.statusCode = 404
-              res.write('Couldn\'t get data from db')
-            }
-          })
-          .catch((e: CastError) => {
-            let msg: string
-            if (e.reason) {
-              res.statusCode = 404
-              msg = e.reason.message
-            } else {
-              res.statusCode = 400
-              msg = e.message
-            }
-            res.write(JSON.stringify({ message: 'Couldn\'t update item', error: msg }))
-            res.statusCode = 400
-          })
-          .finally(() => res.end())
-    }
+export const handleTodoPut = (req: Request, res: Response, path: string) => {
+  todosDataHandler(req).then((data) => {
+    TodoService.putTodo(getIdFromUrl(path), data)
+      .then((data) => handleTodoFoundById(data, res))
+      .catch((e) => handleTodoPutError(e, res))
+      .finally(() => res.end())
   })
 }
-export const handleTodoPatch = (req: Request, res: Response) => {
-  let data = ''
-  req.on('data', (chunk) => data += chunk)
-  req.on('end', () => {
-    if (req.url) {
-      const jsonData = JSON.parse(data)
-      Todo.findByIdAndUpdate(getIdFromUrl(req.url), jsonData, { new: true })
-          .then((updatedTodo: ITodo) => {
-            if (updatedTodo)
-              res.write(JSON.stringify(updatedTodo))
-            else {
-              res.statusCode = 400
-              res.write('Unable to update')
-            }
-          })
-          .catch((e: CastError) => {
-            let msg: string
-            if (e.reason) {
-              if (e.kind === 'ObjectId') {
-                res.statusCode = 404
-                msg = 'Invalid ID'
-              } else {
-                res.statusCode = 400
-                msg = e.reason.message
-              }
-              console.log(e)
-              res.statusCode = 404
-              res.write(JSON.stringify({ message: 'Couldn\'t update item', error: msg }))
-            }
-          })
-          .finally(() => res.end())
-    }
+export const handleTodoPatch = (req: Request, res: Response, path: string) => {
+  todosDataHandler(req).then((data) => {
+    TodoService.patchTodo(getIdFromUrl(path), data)
+      .then((data) => handleTodoFoundById(data, res))
+      .catch((e) => handleTodoPatchError(e, res))
+      .finally(() => res.end())
   })
 }
 //DELETE
-export const handleTodoDelete = (req: Request, res: Response) => {
-  if (!req.url) return
-  Todo.findByIdAndDelete(getIdFromUrl(req.url))
-      .then((data: ITodo) => {
-        if (data) {
-          res.write(JSON.stringify(data))
-        } else {
-          res.statusCode = 404
-          res.write('Couldn\'t find element with such id')
-        }
-      })
-      .catch((e: Error) => {
-        res.statusCode = 404
-        res.write('Couldn\'t get data from db')
-      })
-      .finally(() => res.end())
+export const handleTodoDelete = (req: Request, res: Response, path: string) => {
+  TodoService.findAndDeleteTodo(getIdFromUrl(path))
+    .then((data) => handleTodoFoundById(data, res))
+    .catch(() => handleTodoDeleteError(res))
+    .finally(() => res.end())
 }

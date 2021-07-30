@@ -1,25 +1,63 @@
-import {Request} from '../types'
-import {ROOT_ROUTE} from '../config/defaults'
-import {trimSlash} from '../utils'
+import { Request, Response } from '../types'
+import { isPathWithId } from '../utils'
+import {
+  handleTodoCreate,
+  handleTodoDelete,
+  handleTodoGetAll,
+  handleTodoGetSingle,
+  handleTodoPatch,
+  handleTodoPut,
+} from '../controllers/todo.controller'
+import { startsWithPath } from '../utils/'
 
-export const isTodoIdPath = (url: string) => {
-  const arr = url.split(`${ROOT_ROUTE}/todos/`)
-  return arr.length === 2
-}
-export const isTodoPath = (url: string) => {
-  const arr = url.split('/')
-  // [_, a, b]
-  // arr.shift() //remove first empty element
-  return arr[1] === ROOT_ROUTE.split('/').join('') && arr[2] === 'todos'
+export const TODOS_PATH = 'todos'
+
+export const startsWithTodoPath = startsWithPath(TODOS_PATH)
+
+export const todoRouter = (req: Request, res: Response, path: string) => {
+  if (!req.method) throw new Error('No request method')
+
+  switch (true) {
+    case isCreateTodoRequest(req.method, path):
+      handleTodoCreate(req, res)
+      break
+    case isGetSingleTodoRequest(req.method, path):
+      handleTodoGetSingle(req, res, path)
+      break
+    case isGetAllTodosRequest(req.method, path):
+      handleTodoGetAll(req, res)
+      break
+    case isUpdateTodoRequest(req.method, path):
+      handleTodoPut(req, res, path)
+      break
+    case isPatchTodoRequest(req.method, path):
+      handleTodoPatch(req, res, path)
+      break
+    case isDeleteTodoRequest(req.method, path):
+      handleTodoDelete(req, res, path)
+      break
+    default:
+      //!
+      res.statusCode = 400
+      res.write('invalid request')
+      res.end()
+      break
+  }
 }
 
 //CREATE
-export const isCreateTodoRequest = (req: Request) => req.method === 'POST' && req.url && trimSlash(req.url) === `${ROOT_ROUTE}/todos`
+export const isCreateTodoRequest = (method: string, path: string) =>
+  method === 'POST' && path === ''
 //READ
-export const isGetAllTodosRequest = (req: Request) => req.method === 'GET' && req.url && trimSlash(req.url) === `${ROOT_ROUTE}/todos`
-export const isGetSingleTodoRequest = (req: Request) => req.method === 'GET' && req.url && isTodoIdPath(trimSlash(req.url))
+export const isGetAllTodosRequest = (method: string, path: string) =>
+  method === 'GET' && path === ''
+export const isGetSingleTodoRequest = (method: string, path: string) =>
+  method === 'GET' && isPathWithId(path)
 //UPDATE
-export const isUpdateTodoRequest = (req: Request) => req.method === 'PUT' && req.url && isTodoIdPath(trimSlash(req.url))
-export const isPatchTodoRequest = (req: Request) => req.method === 'PATCH' && req.url && isTodoIdPath(trimSlash(req.url))
+export const isUpdateTodoRequest = (method: string, path: string) =>
+  method === 'PUT' && isPathWithId(path)
+export const isPatchTodoRequest = (method: string, path: string) =>
+  method === 'PATCH' && isPathWithId(path)
 //DELETE
-export const isDeleteTodoRequest = (req: Request) => req.method === 'DELETE' && req.url && isTodoIdPath(trimSlash(req.url))
+export const isDeleteTodoRequest = (method: string, path: string) =>
+  method === 'DELETE' && isPathWithId(path)
