@@ -47,60 +47,80 @@ const handleTodoFoundById = (data: ITodo | null, res: Response) => {
 }
 
 const todosDataHandler = (req: Request) => {
-  return new Promise<ITodo>((resolve) => {
+  return new Promise<ITodo>((resolve, reject) => {
     let data = ''
-    req.on('data', (chunk) => (data += chunk))
-    req.on('end', () => resolve(JSON.parse(data)))
+    try {
+      req.on('data', (chunk) => (data += chunk))
+      req.on('end', () => resolve(JSON.parse(data)))
+    } catch (e) {
+      reject(e)
+    }
   })
 }
 
-//async await
-export const handleTodoCreate = (req: Request, res: Response) => {
-  todosDataHandler(req)
-    .then((data) => {
-      return TodoService.addTodo(data)
-    })
-    .then((todo) => {
-      res.statusCode = 201
-      res.write(JSON.stringify(todo))
-    })
-    .catch((e) => handleTodoCreateError(e, res))
-    .finally(() => res.end())
+export const handleTodoCreate = async (req: Request, res: Response) => {
+  try {
+    const data = await todosDataHandler(req)
+    const todo = await TodoService.addTodo(data)
+    handleResponse(201, JSON.stringify(todo), res)
+  } catch (e) {
+    handleTodoCreateError(e, res)
+  } finally {
+    res.end()
+  }
 }
 //READ
-export const handleTodoGetAll = (req: Request, res: Response) => {
-  TodoService.getAllTodos()
-    .then((data) => res.write(JSON.stringify(data)))
-    .catch(() => handleTodoGetAllError(res))
-    .finally(() => res.end())
+export const handleTodoGetAll = async (req: Request, res: Response) => {
+  try {
+    const data = await TodoService.getAllTodos()
+    res.write(JSON.stringify(data))
+  } catch (e) {
+    handleTodoGetAllError(res)
+  } finally {
+    res.end()
+  }
 }
-export const handleTodoGetSingle = (req: Request, res: Response, path: string) => {
-  TodoService.findTodoById(getIdFromUrl(path))
-    .then((data) => handleTodoFoundById(data, res))
-    .catch(() => sendNoIdResponse(res))
-    .finally(() => res.end())
+export const handleTodoGetSingle = async (req: Request, res: Response, path: string) => {
+  try {
+    const data = await TodoService.findTodoById(getIdFromUrl(path))
+    handleTodoFoundById(data, res)
+  } catch (e) {
+    sendNoIdResponse(res)
+  } finally {
+    res.end()
+  }
 }
 //UPDATE
-export const handleTodoPut = (req: Request, res: Response, path: string) => {
-  todosDataHandler(req).then((data) => {
-    TodoService.putTodo(getIdFromUrl(path), data)
-      .then((data) => handleTodoFoundById(data, res))
-      .catch((e) => handleTodoPutError(e, res))
-      .finally(() => res.end())
-  })
+export const handleTodoPut = async (req: Request, res: Response, path: string) => {
+  try {
+    const data = await todosDataHandler(req)
+    const todo = await TodoService.putTodo(getIdFromUrl(path), data)
+    handleTodoFoundById(todo, res)
+  } catch (e) {
+    handleTodoPutError(e, res)
+  } finally {
+    res.end()
+  }
 }
-export const handleTodoPatch = (req: Request, res: Response, path: string) => {
-  todosDataHandler(req).then((data) => {
-    TodoService.patchTodo(getIdFromUrl(path), data)
-      .then((data) => handleTodoFoundById(data, res))
-      .catch((e) => handleTodoPatchError(e, res))
-      .finally(() => res.end())
-  })
+export const handleTodoPatch = async (req: Request, res: Response, path: string) => {
+  try {
+    const data = await todosDataHandler(req)
+    const todo = await TodoService.patchTodo(getIdFromUrl(path), data)
+    handleTodoFoundById(todo, res)
+  } catch (e) {
+    handleTodoPatchError(e, res)
+  } finally {
+    res.end()
+  }
 }
 //DELETE
-export const handleTodoDelete = (req: Request, res: Response, path: string) => {
-  TodoService.findAndDeleteTodo(getIdFromUrl(path))
-    .then((data) => handleTodoFoundById(data, res))
-    .catch(() => handleTodoDeleteError(res))
-    .finally(() => res.end())
+export const handleTodoDelete = async (req: Request, res: Response, path: string) => {
+  try {
+    const todo = await TodoService.findAndDeleteTodo(getIdFromUrl(path))
+    handleTodoFoundById(todo, res)
+  } catch (e) {
+    handleTodoDeleteError(res)
+  } finally {
+    res.end()
+  }
 }

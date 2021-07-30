@@ -4,15 +4,14 @@ import { startsWithTodoPath, todoRouter, TODOS_PATH } from './todo.routes'
 import { ROOT_ROUTE } from '../config/defaults'
 
 const hasDefaultPrefix = (url: string) => {
-  return url.split('/')[1] === ROOT_ROUTE
+  return url.slice(1, ROOT_ROUTE.length + 1) === ROOT_ROUTE
 }
 
-//rename
-const transformUrl = (url: string) => {
-  return trimSlash(url.split(`${ROOT_ROUTE}`)[1]) //replace
+const removeRootAndSlashesFromUrl = (url: string) => {
+  return trimSlash(url.slice(ROOT_ROUTE.length + 1, url.length))
 }
 
-const sendInvalidRequest = (res: Response) => {
+export const sendInvalidRequest = (res: Response) => {
   res.statusCode = 400
   res.write('Invalid request')
   res.end()
@@ -26,7 +25,7 @@ export const rootRouter = (req: Request, res: Response) => {
     return
   }
 
-  const url = transformUrl(req.url)
+  const url = removeRootAndSlashesFromUrl(req.url)
 
   switch (true) {
     case startsWithTodoPath(url):

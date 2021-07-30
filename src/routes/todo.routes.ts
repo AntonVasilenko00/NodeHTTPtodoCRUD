@@ -9,6 +9,7 @@ import {
   handleTodoPut,
 } from '../controllers/todo.controller'
 import { startsWithPath } from '../utils/'
+import { sendInvalidRequest } from './rootRouter'
 
 export const TODOS_PATH = 'todos'
 
@@ -37,10 +38,7 @@ export const todoRouter = (req: Request, res: Response, path: string) => {
       handleTodoDelete(req, res, path)
       break
     default:
-      //!
-      res.statusCode = 400
-      res.write('invalid request')
-      res.end()
+      sendInvalidRequest(res)
       break
   }
 }
